@@ -1,0 +1,27 @@
+name: hawkingml
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - healpy
+  - camb
+  # Pinned <2 because conda-forge's pytorch on this env is still NumPy-1-linked;
+  # remove the pin once we upgrade torch to a NumPy-2-compatible build.
+  - numpy<2
+  # (numpy explicitly listed so conda solves against the pin)
+  - scipy
+  - scikit-learn
+  - matplotlib
+  # astropy 8 requires numpy>=2, which fights the torch/numpy<2 pin above.
+  # Drop the astropy pin once torch has a numpy-2-compatible build in this env.
+  - astropy<8
+  - pyyaml
+  - pytest
+  - pandas
+  - pyarrow
+  - sympy
+  - pip
+  - pip:
+      - pysr
+      - torch
+      - normflows

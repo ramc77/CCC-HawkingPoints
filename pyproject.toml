@@ -1,0 +1,4 @@
+[tool.pytest.ini_options]
+# Repo root on sys.path so `from src.xxx import ...` works without an install step.
+pythonpath = ["."]
+testpaths = ["tests"]

@@ -1,0 +1,48 @@
+# Downloaded/processed data — never in git.
+data/raw/
+data/processed/
+
+# Large feature caches from run_control_experiment.py.
+results/tables/*.parquet
+results/tables/null_features*.parquet
+
+# Prompts + all Markdown drafts (per repo owner request).
+PROMPTS.md
+CLAUDE.md
+README.md
+paper/DRAFT.md
+results/*.md
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+build/
+dist/
+
+# LaTeX build artifacts
+paper/*.aux
+paper/*.log
+paper/*.out
+paper/*.toc
+paper/*.bbl
+paper/*.blg
+paper/*.synctex.gz
+
+# Envs
+.venv/
+env/
+venv/
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
+
+# Results — keep tracked figures/tables/CSVs, ignore scratch subdirs
+results/scratch/

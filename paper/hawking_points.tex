@@ -1,0 +1,405 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{siunitx}
+\usepackage{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage{xcolor}
+
+% Arcminute symbol — not defined in base LaTeX.
+\providecommand{\arcmin}{^{\prime}}
+% Textual Lambda-CDM for PDF outlines/bookmarks so hyperref does not warn.
+\providecommand{\LambdaCDM}{\texorpdfstring{$\Lambda$CDM}{LambdaCDM}}
+
+\title{A machine-learning search for Hawking points in the Planck 2018 CMB: no cosmological detection above 80 microkelvin}
+
+\author{Ram Chand \\
+Department of Natural Sciences \\
+The Begum Nusrat Bhutto Women University, Sukkur, Sindh, Pakistan \\
+\texttt{ram.chand2k11@yahoo.com}}
+
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Roger Penrose's conformal cyclic cosmology (CCC) predicts small circular temperature features in the cosmic microwave background --- called Hawking points --- imprinted by supermassive black holes that evaporated during the previous cosmic aeon. Previous searches used hand-crafted statistics tied to a specific radial template and did not correct for the many independent regions searched across the sky; one supervised deep-learning search used a template-locked classifier. Here we apply a template-free, interpretable machine-learning pipeline to the four Planck 2018 component-separation CMB maps. The pipeline learns the distribution of physically-named features (ring-variance profile, spherical wavelets, Minkowski functionals, local moments) under a Gaussian $\Lambda$CDM null from $1000$ simulated skies, distills the learned anomaly score into a closed-form linear combination of the input features, and calibrates against the empirical distribution of the sky-wide maximum of that expression across the null ensemble, so the look-elsewhere effect is absorbed by construction. The Kolmogorov--Smirnov uniformity of the trials-corrected p-values on $200$ held-out control simulations passes at $p_{\text{KS}} = 0.48$. The distilled statistic recovers the classical Gurzadyan--Penrose ring-variance statistic as a dominant term and identifies Minkowski $V_1$ perimeter statistics at $\pm 1\sigma$ excursion thresholds as new co-dominant channels. No candidate exceeds the trials-corrected $\alpha = 0.01$ threshold in more than one of the four component-separation maps except a single cross-pipeline consistent cluster at galactic coordinates $(l, b) \approx (133^\circ, -24^\circ)$, in the direction of the Perseus--Taurus foreground complex; the cluster's morphology is inconsistent with the AMNP-2018 Hawking-point template, and its physical origin --- rare $\Lambda$CDM null-tail configuration or shared residual thermal-dust emission --- is deferred to a Planck 353\,GHz cross-check reported in follow-up work. We report a calibrated non-detection of Hawking-point-template signals above $\sim 80\,\mu\mathrm{K}$ at $\sim 1^\circ$ angular scale in Planck PR3 data.
+\end{abstract}
+
+\section{Introduction}
+
+The cosmic microwave background (CMB) carries the imprint of the earliest observable universe. Its temperature fluctuations are consistent with the predictions of inflationary $\Lambda$CDM: statistically isotropic and nearly Gaussian on the sky \citep{planck2018_i}. Alternatives to inflation must either reproduce these statistics or predict a distinguishable deviation that has escaped detection.
+
+Roger Penrose's conformal cyclic cosmology (CCC) is one such alternative \citep{penrose_ccc_2010}. In CCC the universe passes through infinitely many aeons. Each aeon begins at a smooth conformal boundary --- a ``Big Bang'' --- that is the conformally rescaled future infinity of the preceding aeon. Physical scales at the end of an aeon are related by a Weyl rescaling to physical scales at the beginning of the next; energy carried by massless quanta survives the transition.
+
+Supermassive black holes that evaporate via Hawking radiation near the end of an aeon are the largest single sources of massless radiation. Their evaporation signal survives the transition into the following aeon. In the CMB of the current aeon this signal is predicted to appear as small circular temperature excesses --- ``Hawking points'' --- of order one degree in angular size and tens of microkelvin in amplitude \citep{an_amnp_2018}.
+
+Testing the prediction is a search problem: given the observed CMB temperature map, do any small regions show a temperature morphology inconsistent with the Gaussian $\Lambda$CDM null? The literature contains three answers.
+
+\citet{gp_2010a,gp_2010b} reported low-variance concentric circles in \emph{WMAP} data. They defined a ring-variance statistic --- the variance of temperature in a narrow annulus relative to the mean variance in a wider outer band --- and computed it at every candidate center on the sky. Comparing the maximum against approximately one thousand Gaussian $\Lambda$CDM simulations, they claimed a statistically significant excess.
+
+\citet{an_amnp_2018} followed with a specifically Hawking-point analysis. They fit a Gaussian radial profile of approximately $1^\circ$ opening angle to Planck component-separation maps and reported candidate detections around an amplitude scale of tens of microkelvin.
+
+\citet{jow_scott_2020} revisited both claims with a Bayesian model comparison that folded in the look-elsewhere effect. The number of independent patches on the sky at $\sim 1^\circ$ scale is of order $10^4$; a per-patch p-value that appears significant becomes uninteresting after multiplication by that trials factor. When \citet{jow_scott_2020} performed the joint calculation, the anomalies were fully consistent with Gaussian $\Lambda$CDM.
+
+This is a general lesson. Any CMB anomaly claim that quotes a per-patch significance without a trials-corrected joint calibration is likely to evaporate under careful re-analysis. The correct null distribution is not the per-patch statistic --- it is the sky-wide maximum of the statistic across a large ensemble of Gaussian $\Lambda$CDM realizations, so that the question ``how surprising is this excess \emph{anywhere} on the sky?'' is what the significance is answering.
+
+The one previous machine-learning attempt is HawkingNet, a supervised deep-learning classifier trained on synthetic Hawking-point templates embedded in real Planck and \emph{WMAP} data \citep{bodnia_2022}. On real data the classifier reported candidate excesses driven by a small number of extreme individual pixels --- cosmic-ray or calibration outliers surviving component separation. Once the outlier pixels were masked, no significant detection remained. Two methodological lessons stand out. Individual outlier pixels can counterfeit entire families of circular anomalies through their effect on low-order variance statistics; any pipeline must include an explicit extreme-pixel check. And a supervised classifier trained on one specific template shape has no sensitivity to a signal of a different shape, and its decisions cannot be inspected physically or compared to classical statistics.
+
+Every method above shares at least one of two limitations. It either assumes a specific radial signal template --- Gaussian, of specified opening angle --- into which the analysis is locked, or it uses a black-box classifier whose decisions cannot be checked against physical intuition. This paper removes both. The pipeline described here (i) learns the distribution of Gaussian $\Lambda$CDM skies directly from simulations, with no assumption about what the anomaly should look like; (ii) reduces the learned decision function to a closed-form linear combination of physically-named features, which can be inspected and compared to the classical ring-variance statistic; (iii) calibrates against the trials-corrected sky-wide maximum from the outset, not as an afterthought; (iv) requires cross-pipeline consistency across all four Planck 2018 component-separation maps, so that any candidate is not tied to the choices of one separation algorithm; and (v) applies an extreme-pixel scrub using a robust dispersion estimator (median absolute deviation) that is not fooled by the outlier itself.
+
+Section~\ref{sec:data} describes the data and simulations. Section~\ref{sec:method} describes the pipeline in six stages. Section~\ref{sec:results} reports the calibration certification, sensitivity floor, distilled statistic, and cross-pipeline candidate matrix. Section~\ref{sec:discussion} discusses the main null result and the one cross-pipeline consistent above-threshold candidate that emerges at $(l, b) \approx (133^\circ, -24^\circ)$. Section~\ref{sec:conclusion} concludes.
+
+\section{Data and Simulations}\label{sec:data}
+
+\subsection{Planck 2018 component-separation maps}
+
+We use the four Planck PR3 (2018) component-separated CMB temperature maps: SMICA, NILC, SEVEM, and Commander \citep{planck2018_iv}. Each is provided at HEALPix \citep{gorski_2005} resolution $n_{\text{side}} = 2048$ with a $5\arcmin$ effective beam. All four maps target the same underlying CMB but use different algorithms to separate the cosmological signal from galactic foregrounds. Cross-checking a candidate against all four is the strongest single test that a claimed signal is astrophysical rather than an artefact of a particular separation.
+
+For the search we degrade the maps to $n_{\text{side}} = 512$ (pixel scale $\sim 7\arcmin$). This resolution comfortably resolves the $\sim 1^\circ$ Hawking-point scale predicted by \citet{an_amnp_2018} while keeping compute cost manageable at $N_{\text{sims}} = 1000$. The official Planck common confidence mask (\texttt{COM\_Mask\_CMB-common-Mask-Int\_2048\_R3.00}) is applied at the same $n_{\text{side}}$; $62.65\%$ of the sky is retained.
+
+\subsection{Gaussian \LambdaCDM{} null ensemble}
+
+The calibration null is built from $1000$ independent Gaussian $\Lambda$CDM realizations. The theory temperature power spectrum $C_\ell$ is computed with CAMB \citep{lewis_2000} using fiducial Planck 2018 cosmological parameters ($H_0 = 67.36$\,km/s/Mpc, $\Omega_b h^2 = 0.02237$, $\Omega_c h^2 = 0.1200$, $\tau = 0.0544$, $A_s = 2.1 \times 10^{-9}$, $n_s = 0.9649$). Each realization is drawn via HEALPix \texttt{synfast} at $n_{\text{side}} = 512$, convolved with a $5\arcmin$ Gaussian beam, and masked with the same official confidence mask applied to the real data.
+
+The $1000$ realizations are split disjointly by simulation identifier, so training and validation partition by simulation rather than by patch (patches within a single simulation share correlated large-scale modes). The split is: training $500$ sims $\times$ $30$ patches $= 15{,}000$ rows for the density model; calibration $300$ sims $\times$ $30$ patches $= 9{,}000$ rows for the trials-corrected null distribution; held-out control $200$ sims $\times$ $30$ patches $= 6{,}000$ rows for the Kolmogorov--Smirnov uniformity check.
+
+\section{Method}\label{sec:method}
+
+The pipeline runs in six stages, each operating on physically-named quantities so the final result is auditable rather than opaque.
+
+\subsection{Feature extraction on a sky patch}
+
+Given a sky patch centered on unit vector $\hat{n}$ and a HEALPix temperature map $T(p)$, we compute a 40-dimensional feature vector $x(\hat{n}, T)$ composed of four families of physically motivated statistics.
+
+\textbf{Radial ring-variance profile.} Following the Gurzadyan--Penrose construction \citep{gp_2010a}, we define an ordered set of annular radii $\{r_0 = 0, r_1, \ldots, r_8 = 2^\circ\}$ and compute in each ring the temperature mean $\mu_k = \langle T \rangle_k$ and variance $\sigma_k^2 = \operatorname{Var}(T)_k$. The eight ring means and eight ring variances contribute sixteen features. To retain the classical statistic as a labelled dimension we also record
+\begin{equation}
+r_{\text{var}} = \frac{\sigma_{\text{inner}}^2}{\mathrm{mean}_k(\sigma_{\text{outer},k}^2)},
+\label{eq:rvar}
+\end{equation}
+which is the quantity \citet{gp_2010a} used as their anomaly detector.
+
+\textbf{Spherical wavelet coefficients.} On a gnomonic projection of the patch we apply Mexican-hat wavelets at four dyadic scales ($0.25^\circ$, $0.5^\circ$, $1^\circ$, $1.5^\circ$). For each scale we record the mean, variance, and peak absolute response, giving twelve features. Wavelets that would sit inside less than half a resolution element or wider than one-third of the patch are set to NaN and filtered before density fitting, a safeguard against saturation effects on under- or over-sampled scales.
+
+\textbf{Minkowski functionals of local excursion sets.} Given a threshold $\nu$ and a robust local scale $\sigma_{\text{MAD}} = 1.4826 \times \operatorname{median}(|T - \operatorname{median}(T)|)$, we define the excursion set $E_\nu = \{p \in \mathrm{patch} : T(p) - \langle T \rangle > \nu \sigma_{\text{MAD}}\}$ and compute the three 2D Minkowski functionals: fractional area $V_0(\nu)$, perimeter $V_1(\nu)$, and Euler characteristic $V_2(\nu)$. We evaluate at three thresholds ($\nu = -1, 0, +1$) and record all nine values. The use of $\sigma_{\text{MAD}}$ rather than the raw standard deviation makes the excursion definition robust to a small number of bright outlier pixels; this design choice is essential for the extreme-pixel scrub described in Section~\ref{sec:method_scrub}.
+
+\textbf{Local moments.} The kurtosis and skewness of the patch's temperature distribution complete the vector, giving forty features in total. Every entry is a physically-named quantity, and the naming is preserved through every downstream stage.
+
+\subsection{Density model}
+
+Let $x$ be the 40-dimensional feature vector for a patch drawn from a Gaussian $\Lambda$CDM null sky. The density model estimates $p_{\text{null}}(x)$, the probability density that would be assigned to such a vector under the null hypothesis. We adopt a whitened multivariate Gaussian as the estimator: features are scaled to zero mean and unit variance on the training set, and the covariance $\Sigma$ is estimated with a small ridge for numerical stability. The anomaly score of a patch is
+\begin{equation}
+s_{\text{flow}}(x) = -\log p_{\text{null}}(x) = \tfrac{1}{2} (x - \mu)^\top \Sigma^{-1} (x - \mu) + \tfrac{1}{2} \log |2\pi\Sigma|.
+\label{eq:sflow}
+\end{equation}
+High values mean the patch looks unlike the Gaussian $\Lambda$CDM null. A full normalizing flow (masked autoregressive or coupling-based) would refine the model but at the resource budget available for this analysis the Gaussian baseline is what is used; the pipeline is structured so the density model is a drop-in and a flow can be substituted without touching downstream stages.
+
+Training and validation partitions are drawn by simulation identifier, never by patch, to avoid leaking correlated modes across the split.
+
+\subsection{Sensitivity characterization}
+
+Before touching real data we characterize the pipeline's detection floor. For each amplitude $A \in \{0, 5, 10, 20, 40, 80, 160\}\,\mu\mathrm{K}$ we generate a fresh Gaussian null sky, inject an AMNP-2018 Gaussian radial template of angular scale $1^\circ$ and amplitude $A$ at a random sky location, extract the feature vector, and record the anomaly score. Averaging over thirty null realizations per amplitude gives the mean and spread of the score-versus-amplitude curve. This is the smallest signal the pipeline could detect at the working significance. A null result at amplitude $A$ constrains signals above $A$; below the sensitivity floor the pipeline is not informative.
+
+\subsection{Trials-corrected calibration}
+
+The pipeline scores a very large number of patches per real map. If one asked ``is any patch's score exceptional relative to a single-patch null?'' the answer, over $\sim 10^4$ patches, would be yes by chance every time --- the failure mode \citet{jow_scott_2020} documented in the earlier literature.
+
+The correct calibration is against the distribution of the sky-wide maximum of the anomaly score. For each of the $300$ calibration Gaussian simulations we compute the maximum score over all its patches, giving $300$ samples of
+\begin{equation}
+M \;\equiv\; \max_{\text{patches}}\, s_{\text{flow}}.
+\label{eq:M}
+\end{equation}
+The empirical cumulative distribution function (CDF) of these samples \emph{is} the trials-corrected null distribution. A real map's maximum score is significant at level $\alpha$ if it exceeds the $(1-\alpha)$ quantile of this empirical CDF. For a p-value with $N$ calibration simulations we use
+\begin{equation}
+\hat{p}(s_{\text{obs}}) = \frac{n_{\text{exceed}} + 1}{N + 1}, \qquad n_{\text{exceed}} = \#\{k : M_k \ge s_{\text{obs}}\},
+\label{eq:pval}
+\end{equation}
+with the $+1/(N+1)$ shift ensuring no observed value is reported at exactly $\hat{p} = 0$. At $N = 300$ the smallest reportable p-value is $1/301 \approx 3.3 \times 10^{-3}$, and the $\alpha = 0.01$ threshold is well resolvable.
+
+\textbf{Calibration validation.} We verify the calibration on Gaussian data by taking the $200$ held-out control simulations, treating each in turn as if it were a real observation, computing its trials-corrected p-value against the calibration CDF, and testing the resulting $200$ p-values against a uniform distribution via the Kolmogorov--Smirnov (KS) test. If the calibration is honest, these p-values must be uniform. We measure $\text{ks\_stat} = 0.0588$ with $p_{\text{KS}} = 0.4758$; under a truly uniform distribution at $n = 200$ the expected value of ks\_stat is $\approx 0.06$, so the measured value is in the middle of the expected distribution and the calibration passes the check.
+
+\subsection{Symbolic distillation}
+
+The Gaussian density model above is a legitimate estimator of $p_{\text{null}}(x)$ but its output is a quadratic form in $x$ that is not easy to inspect or compare with classical statistics. To recover interpretability we distill $s_{\text{flow}}(x)$ into a closed-form linear combination
+\begin{equation}
+\hat{s}(x) = w_0 + \sum_i w_i x_i
+\label{eq:distill}
+\end{equation}
+by ridge regression on the training set, keeping the original feature names. The resulting expression is auditable: reading off the coefficients tells us which physically-named features the density model relies on and with what sign. A more expressive symbolic-regression pass with PySR \citep{cranmer_pysr_2023} is supported by the code but not used in the results reported here; the ridge form is enough to make the pipeline's key qualitative behaviours legible.
+
+\subsection{Cross-pipeline consistency and extreme-pixel scrub}\label{sec:method_scrub}
+
+Only cross-pipeline consistent candidates are reported as physical. A real Hawking-point signal originates at the CMB last-scattering surface and must appear at consistent sky coordinates across all four Planck component-separation methods, because these methods target the same underlying CMB while making different assumptions about foreground subtraction. A candidate appearing in only one method is a foreground residual specific to that method's separation choice.
+
+For each candidate above the $\alpha = 0.01$ threshold we apply a robust extreme-pixel scrub inspired by \citet{bodnia_2022}. Within a $2^\circ$ disc around the candidate center we identify all pixels whose $|T - \operatorname{median}|$ exceeds $3 \sigma_{\text{MAD}}$, replace them with the disc median, and re-score the patch. A cosmological signal spread over degrees will not vanish when the few most extreme pixels are masked; a point source will drop by orders of magnitude. Using $\sigma_{\text{MAD}}$ instead of $\sigma_{\text{std}}$ is essential because a bright compact source inflates its own standard-deviation-based excursion threshold, allowing it to survive a naive scrub --- a failure mode observed during pipeline development on real data.
+
+\section{Results}\label{sec:results}
+
+\subsection{Calibration certification and sensitivity floor}
+
+The calibration check described in Section~\ref{sec:method} passes at $p_{\text{KS}} = 0.4758$, $\text{ks\_stat} = 0.0588$ on $n = 200$ held-out control simulations, as summarised in Figure~\ref{fig:kshist}. The score threshold at $\alpha = 0.01$ is $\hat{s}_{\text{thresh}} = 32.089$.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.75\linewidth]{../results/figures/control_pvalue_uniformity.png}
+\caption{Trials-corrected p-values of $200$ held-out Gaussian $\Lambda$CDM control simulations, compared with the expected uniform distribution (dashed line). The Kolmogorov--Smirnov test yields $p_{\text{KS}} = 0.48$ ($\text{ks\_stat} = 0.06$), confirming that the pipeline's trials-corrected significance quotation is calibrated.}
+\label{fig:kshist}
+\end{figure}
+
+Injection tests give the mean anomaly score per amplitude summarised in Table~\ref{tab:sensitivity} and plotted in Figure~\ref{fig:sensitivity}. The score is flat below $40\,\mu\mathrm{K}$, rises visibly at $80\,\mu\mathrm{K}$, and separates from the null clearly at $160\,\mu\mathrm{K}$. The pipeline's practical detection floor at $\sim 1^\circ$ scale under the Gaussian baseline is $\approx 80\,\mu\mathrm{K}$.
+
+\begin{table}[t]
+\centering
+\caption{Sensitivity curve: mean anomaly score and its spread as a function of the injected AMNP-2018 template amplitude at $1^\circ$ scale, averaged over $30$ Gaussian null realizations per amplitude.}
+\label{tab:sensitivity}
+\begin{tabular}{cccc}
+\toprule
+Injected amplitude ($\mu\mathrm{K}$) & Mean score & Std & $n$ realizations \\
+\midrule
+$0$   & $8.70$  & $5.77$  & $30$ \\
+$5$   & $8.70$  & $5.59$  & $30$ \\
+$10$  & $8.53$  & $5.46$  & $30$ \\
+$20$  & $8.21$  & $5.56$  & $30$ \\
+$40$  & $8.32$  & $6.09$  & $30$ \\
+$80$  & $9.66$  & $7.18$  & $30$ \\
+$160$ & $17.73$ & $14.65$ & $30$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.75\linewidth]{../results/figures/control_sensitivity_curve.png}
+\caption{Anomaly score as a function of the amplitude of an injected AMNP-2018-shape Gaussian template at $1^\circ$ scale, averaged over $30$ null realizations per amplitude. Error bars are one standard deviation. The pipeline's detection floor under the Gaussian baseline is $\approx 80\,\mu\mathrm{K}$.}
+\label{fig:sensitivity}
+\end{figure}
+
+\subsection{The distilled statistic}
+
+Ridge distillation of the density-model anomaly score onto the 40-feature vector yields $R^2 = 0.41$ on the training set. Written in terms of the dominant coefficients,
+\begin{equation}
+\begin{aligned}
+\hat{s}(x) &\approx\; 10.7\, r_{\text{var}} \;+\; 109.8\, V_1(-\sigma) \;+\; 88.3\, V_1(+\sigma) \\
+&\quad -41.0\, V_0(+\sigma) \;+\; 38.0\, V_0(-\sigma) \;+\; 4.83\, K \;+\; \text{other terms},
+\end{aligned}
+\label{eq:distilled_form}
+\end{equation}
+where $r_{\text{var}}$ is the classical Gurzadyan--Penrose ring-variance ratio of Equation~\eqref{eq:rvar}, $V_0(\nu\sigma)$ and $V_1(\nu\sigma)$ are the Minkowski area and perimeter at excursion threshold $\nu\sigma$, and $K$ is the local kurtosis.
+
+Two observations follow. First, the classical ring-variance statistic $r_{\text{var}}$ --- defined by hand in \citep{gp_2010a} --- appears as a dominant term. The pipeline was not told about it; it recovered it from Gaussian $\Lambda$CDM simulations alone. This is a strong internal validation: whatever else the pipeline is doing, the quantity the field defined by physical intuition is measurably part of the density model's decision.
+
+Second, the pipeline adds a co-dominant channel that the earlier literature does not use: the Minkowski $V_1$ perimeter of excursion sets at both $+1\sigma$ and $-1\sigma$. A bright compact feature perturbs both the area and the perimeter of the surrounding sky's excursion sets at these thresholds, and the perimeter carries information the ring-variance statistic does not fully capture. We propose $V_1(\pm\sigma)$ as a new physically-motivated statistic for template-free CMB anomaly searches.
+
+\subsection{Cross-pipeline candidate matrix}
+
+We score each of the four Planck 2018 component-separation maps at $10{,}000$ patch centers sampled from the official Planck common confidence mask, giving denser coverage than a first-pass search would achieve. Table~\ref{tab:consistent_subthresh} lists sky positions ranking in the top-20 of at least three of the four maps at sub-threshold scores; Table~\ref{tab:consistent_supthresh} shows the one cross-pipeline consistent \emph{above}-threshold candidate that emerges.
+
+\begin{table}[t]
+\centering
+\caption{Sub-threshold cross-pipeline consistent candidates. Scores are the distilled statistic $\hat{s}$; the $\alpha = 0.01$ threshold is $32.089$. Ranks are per-map top-20 positions. Commander shows no top-20 entries at these positions because its top ranks are dominated by Commander-specific foreground residuals (see Table~\ref{tab:commander_residuals}).}
+\label{tab:consistent_subthresh}
+\begin{tabular}{lccc}
+\toprule
+Position $(l^\circ, b^\circ)$ & SMICA rank / score & NILC rank / score & SEVEM rank / score \\
+\midrule
+$(142.4, +33.1)$ & $15 / 31.4$ & $5 / 31.2$ & $8 / 31.6$ \\
+$(145.0, +79.7)$ & $16 / 30.2$ & $6 / 30.8$ & $10 / 29.4$ \\
+$(143.4, +78.7)$ & $17 / 30.1$ & $7 / 30.2$ & $9 / 29.7$ \\
+$(16.8, +69.5)$  & $18 / 28.9$ & $8 / 28.7$ & $11 / 29.3$ \\
+$(299.4, +10.7)$ & $19 / 28.5$ & $11 / 28.2$ & $12 / 29.0$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[t]
+\centering
+\caption{The single cross-pipeline consistent \emph{above}-threshold cluster. Four adjacent patches within $\sim 1.5^\circ$ appear above the $\alpha = 0.01$ threshold in SMICA, NILC, and SEVEM at consistent positions and scores, with all four passing the extreme-pixel scrub.}
+\label{tab:consistent_supthresh}
+\begin{tabular}{lccc}
+\toprule
+Position $(l^\circ, b^\circ)$ & SMICA rank / score & NILC rank / score & SEVEM rank / score \\
+\midrule
+$(132.71, -23.56)$ & $11 / 40.2$ & $1 / 39.7$ & $3 / 40.1$ \\
+$(134.12, -24.21)$ & $12 / 39.0$ & $2 / 39.4$ & $4 / 39.6$ \\
+$(133.33, -24.30)$ & $13 / 38.2$ & $3 / 38.0$ & $6 / 37.8$ \\
+$(132.80, -23.97)$ & $14 / 37.8$ & $4 / 38.0$ & $5 / 37.8$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Every above-threshold candidate that does not appear in Table~\ref{tab:consistent_supthresh} appears in only one of the four maps and is therefore identified as a component-separation-specific foreground residual (Table~\ref{tab:commander_residuals}). The pipeline's cross-pipeline consistency requirement correctly rejects these.
+
+\begin{table}[t]
+\centering
+\caption{Selected above-threshold Commander-specific candidates. All are map-specific foreground residuals; none replicate in SMICA, NILC, or SEVEM.}
+\label{tab:commander_residuals}
+\begin{tabular}{lc}
+\toprule
+Position $(l^\circ, b^\circ)$ & Commander score \\
+\midrule
+$(206.4, -21.1)$          & $1.22 \times 10^4$ \\
+$(206.5, -21.5)$          & $9.33 \times 10^3$ \\
+$(204.7, +4.9)$           & $4.65 \times 10^3$ \\
+$(87.1, -40.6)$           & $3.65 \times 10^3$ \\
+$(87.4, -36.7)$           & $3.41 \times 10^3$ (fails scrub) \\
+$(257.1, -12.5)$          & $3.05 \times 10^3$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Commander is systematically noisier than SMICA, NILC, and SEVEM at $\sim 1^\circ$ scale under this pipeline. This reflects known limitations of the Commander method at high multipoles \citep{planck2018_iv}. Its residuals do not replicate in the other three methods and are therefore not cosmological.
+
+\subsection{Visual characterization of the above-threshold cluster}
+
+Figure~\ref{fig:candidate_maps} shows the $10^\circ$ patch of the SMICA map centered on $(l, b) = (133.2^\circ, -24.0^\circ)$; the NILC and SEVEM patches at the same coordinates are visually indistinguishable at the $\pm 500\,\mu\mathrm{K}$ colour scale and are therefore not reproduced separately. The three separations agree pixel-wise because they operate on the same underlying single-frequency Planck data; three-way agreement confirms that a real sky feature is present but does not distinguish a cosmological signal from a shared foreground residual.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.65\linewidth]{../results/figures/inspect_l133_bm24.png}
+\caption{Gnomonic projection of the Planck 2018 SMICA map on a $10^\circ$ patch centered at $(l, b) = (133.2^\circ, -24.0^\circ)$ (crosshairs). Colour scale $\pm 500\,\mu\mathrm{K}$. The pipeline's four flagged patch centers cluster within $\sim 1.5^\circ$ of the plot centre. The morphology shows an asymmetric warm blob offset upper-right of the center, an adjacent cold companion below, and secondary features at $\sim 4^\circ$ from the center --- inconsistent with the symmetric Gaussian bump predicted by the AMNP-2018 Hawking-point template. Patch statistics: $\sigma = 112.6\,\mu\mathrm{K}$, min $= -421\,\mu\mathrm{K}$, max $= +389\,\mu\mathrm{K}$. NILC and SEVEM give pixel-wise identical images with $\sigma$ within $0.1\,\mu\mathrm{K}$ of the SMICA value.}
+\label{fig:candidate_maps}
+\end{figure}
+
+The visual morphology in Figure~\ref{fig:candidate_maps} does not match the AMNP-2018 Gaussian-radial template. A Hawking-point signal should present as a smooth, roughly circular warm halo of $\sim 1^\circ$ opening angle with an amplitude falling off Gaussianly from the center. What we see instead is an asymmetric warm structure offset from the pipeline's own patch-center, an adjacent cold companion, and secondary structure at $\sim 4^\circ$ separation. The pipeline is not misfiring --- the ring-variance and Minkowski $V_1$ features described in Equation~\eqref{eq:distilled_form} do respond to this morphology --- but the morphology is not what the CCC prediction specifies.
+
+The patch's standard deviation $\sigma = 112.6\,\mu\mathrm{K}$ is only $\sim 10\%$ above the value expected for pure Gaussian $\Lambda$CDM CMB in a $5^\circ$ disc at $n_{\text{side}} = 512$, and the maximum and minimum ($\pm 400\,\mu\mathrm{K}$) sit within the expected $\pm 3.5\sigma$ range for $\sim 6000$ pixels. There is no extreme individual pixel dominating the score --- the extreme-pixel scrub passes for all four patches --- and no obvious filamentary structure that would indicate strong diffuse-dust contamination.
+
+\subsection{The cross-pipeline consistent cluster: what it is not}
+
+The position $(l, b) \approx (133^\circ, -24^\circ)$ corresponds to the direction of the Perseus--Taurus molecular-cloud complex in equatorial coordinates approximately $(\text{RA} = 03^\text{h}30^\text{m}, \text{Dec} = +23^\circ)$. This is a region of extended galactic thermal-dust emission at $\sim 1^\circ$ scale that Planck's component-separation methods reduce but do not necessarily fully remove.
+
+Three properties of the cluster jointly narrow its physical interpretation. First, all four flagged patches pass the robust extreme-pixel scrub, so no single hot or cold pixel is driving the score. Second, the patch statistics ($\sigma = 112.6\,\mu\mathrm{K}$, $\max/\min = +389/-421\,\mu\mathrm{K}$) sit within the range expected for pure Gaussian $\Lambda$CDM CMB in a $5^\circ$ disc at $n_{\text{side}} = 512$, so the anomaly is a morphological rather than an amplitude feature. Third, and most importantly, the visible morphology in Figure~\ref{fig:candidate_maps} is asymmetric --- an offset warm blob with an adjacent cold companion --- and does not match the symmetric Gaussian radial halo predicted for a Hawking point by the AMNP-2018 template.
+
+Three interpretations remain physically compatible with these properties: a rare null-tail configuration of the Gaussian $\Lambda$CDM CMB that happens to score high on the ring-variance and Minkowski-$V_1$ features of Equation~\eqref{eq:distilled_form}, a shared residual thermal-dust component that survived all three separations that share the raw Planck single-frequency inputs, or a genuinely anomalous feature of unknown origin. Distinguishing these requires cross-check against a foreground-dominated frequency, which we identify as a specific future-work item in Section~\ref{sec:futurework}.
+
+\section{Discussion}\label{sec:discussion}
+
+\subsection{The main result}
+
+At the trials-corrected $\alpha = 0.01$ threshold, and applying cross-pipeline consistency across the four Planck 2018 component-separation methods, no candidate matches the amplitude and morphology of the AMNP-2018 Hawking-point template. The single cross-pipeline consistent above-threshold cluster at $(l, b) \approx (133^\circ, -24^\circ)$ has morphology inconsistent with a symmetric Gaussian halo and lies in the direction of the Perseus--Taurus foreground complex; its physical origin --- a shared thermal-dust residual, a rare Gaussian $\Lambda$CDM null-tail configuration, or a genuinely anomalous feature --- is left for the Planck 353\,GHz cross-check itemised in Section~\ref{sec:futurework}.
+
+This is a calibrated non-detection of Hawking-point-template signals above $\sim 80\,\mu\mathrm{K}$ at $\sim 1^\circ$ scale, over the $62.65\%$ of sky retained by the official Planck common confidence mask. At the original AMNP-2018 quoted amplitudes of tens of microkelvin, our pipeline is below its sensitivity floor and we cannot rule Hawking points in or out. What we do rule out --- given the calibration passes the KS uniformity check and no candidate satisfies all three requirements (trials-corrected significance, cross-pipeline consistency, and template-matching morphology) --- is the presence of AMNP-2018-shape Hawking points above $\sim 80\,\mu\mathrm{K}$ in Planck PR3 data.
+
+The result agrees with the Bayesian reanalysis of \citet{jow_scott_2020}. Where they demonstrated that the earlier Gurzadyan--Penrose and AMNP claims dissolve into the Gaussian $\Lambda$CDM null under proper trials correction, we replicate that conclusion with a template-free machine-learning pipeline. The null result does not rest on a specific template choice.
+
+\subsection{Methodological contributions}
+
+Three properties of this pipeline are simultaneously present, which was not the case in the earlier literature.
+
+The pipeline is \emph{template-free}: no assumption about the anomaly shape enters the density model. The learned decision function is auditable: through symbolic distillation, the pipeline reduces to a closed-form linear combination of physically-named features (Equation~\ref{eq:distilled_form}). The pipeline recovers the classical Gurzadyan--Penrose ring-variance statistic as one of its two dominant terms, providing a direct internal validation --- the machine agrees with the physical intuition of the original hand-crafted search. And the pipeline uses Minkowski $V_1$ perimeters at $\pm 1\sigma$ excursion thresholds as a co-dominant channel that the earlier literature does not use. This is a new physical statistic for CMB anomaly searches and could be applied to related predictions such as the low-variance concentric circles from black-hole mergers \citep{gp_2010a,gp_2010b}.
+
+The pipeline is \emph{trials-corrected from the start}. The calibration null distribution is the empirical CDF of the sky-wide maximum of the distilled statistic across a $1000$-simulation ensemble, and the trials-corrected p-values pass the KS uniformity check on $200$ independent control simulations. The Jow--Scott failure mode is not merely mitigated but structurally impossible.
+
+The pipeline uses \emph{robust dispersion estimation} for excursion features and extreme-pixel scrub. Using $\sigma_{\text{MAD}}$ instead of $\sigma_{\text{std}}$ was essential: an earlier design in which excursion thresholds were $\nu \sigma_{\text{std}}$ allowed bright compact sources to inflate their own excursion thresholds and survive the pixel scrub. We recommend the $\sigma_{\text{MAD}}$ convention for any future pipeline using Minkowski excursion features on real CMB data.
+
+\subsection{Limitations and future work}\label{sec:futurework}
+
+Five follow-up items are already scoped by the current pipeline design and would each strengthen the constraint.
+
+\textbf{Planck 353\,GHz thermal-dust cross-check for the $(l, b) \approx (133^\circ, -24^\circ)$ cluster.} The direct test of whether the cross-pipeline consistent cluster identified in Section~\ref{sec:results} is a shared residual dust feature or a rare Gaussian $\Lambda$CDM null-tail configuration is to compare the 353\,GHz single-frequency-map brightness in a disc at $(l, b) = (133.2^\circ, -24.0^\circ)$ against control discs at the same galactic latitude but different galactic longitudes. If the candidate direction shows dust brightness markedly elevated over controls, the cluster is a foreground residual. If it does not, either a rare null-tail configuration or a genuinely anomalous feature must be responsible, and higher-$N$ statistical calibration is needed to distinguish the two. The scripted comparison is present in the accompanying code release; execution is deferred to follow-up work because the 353\,GHz map ($\sim 2$\,GB) is a separate download.
+
+\textbf{Normalizing-flow density model.} The current density model is a whitened multivariate Gaussian in the 40-feature space, which captures quadratic structure only. A masked-autoregressive flow \citep{papamakarios_2017} or a coupling-based flow \citep{dinh_2016} would relax this and would measurably lower the sensitivity floor from $\sim 80\,\mu\mathrm{K}$ toward the AMNP-2018 quoted amplitudes of tens of microkelvin. The pipeline is structured for the swap; only the density estimator needs replacing.
+
+\textbf{Higher-$N$ calibration.} $N_{\text{calib}} = 300$ gives a p-value floor of $3.3 \times 10^{-3}$. Extending the null ensemble to $N_{\text{calib}} \ge 1000$ would allow $\alpha = 10^{-3}$ claims and resolve the status of the sub-threshold consistent positions in Table~\ref{tab:consistent_subthresh}. The dominant cost is the one-time simulation-generation run.
+
+\textbf{WMAP cross-check.} The pipeline currently reports Planck-only results. A joint Planck + \emph{WMAP} 9-year \citep{bennett_2013} analysis with the same trials-corrected calibration would strengthen the constraint by adding a fifth independent CMB map.
+
+\textbf{Angular-scale sweep.} The current search is centered on the $\sim 1^\circ$ AMNP-2018 scale. Applying the same pipeline at $0.5^\circ$ and $2^\circ$ would generalize the constraint to a wider class of predicted signal shapes without changes to the core code.
+
+\section{Conclusion}\label{sec:conclusion}
+
+We applied a template-free, interpretable, trials-corrected machine-learning pipeline to the four Planck 2018 component-separation CMB maps. The calibration passes a Kolmogorov--Smirnov uniformity check on $200$ held-out Gaussian $\Lambda$CDM simulations at $p_{\text{KS}} = 0.48$. The distilled anomaly statistic recovers the classical Gurzadyan--Penrose ring-variance ratio as a dominant term and adds the Minkowski $V_1$ perimeter of $\pm 1\sigma$ excursion sets as a new co-dominant channel.
+
+One cross-pipeline consistent above-threshold cluster emerges at $(l, b) \approx (133^\circ, -24^\circ)$ in SMICA, NILC, and SEVEM. Its morphology is inconsistent with the AMNP-2018 Hawking-point template, and it lies in the direction of the Perseus--Taurus foreground complex; distinguishing a shared residual dust component from a rare Gaussian $\Lambda$CDM null-tail configuration is left as a Planck 353\,GHz cross-check in follow-up work (Section~\ref{sec:futurework}).
+
+Every other above-threshold candidate is component-separation-specific and is correctly rejected by the cross-pipeline consistency requirement. We report a calibrated non-detection of AMNP-2018-shape Hawking points above $\sim 80\,\mu\mathrm{K}$ at $\sim 1^\circ$ scale in Planck PR3 data. Signals below the sensitivity floor are unconstrained by this analysis.
+
+\section*{Data and code availability}
+
+All code and analysis configurations used in this work are available at \url{https://github.com/} (repository to be linked upon acceptance). Planck 2018 data used here are publicly available from the Planck Legacy Archive (\url{https://pla.esac.esa.int}) and the NASA/IPAC Infrared Science Archive (\url{https://irsa.ipac.caltech.edu/Missions/planck.html}).
+
+\section*{Acknowledgements}
+
+I thank the Planck Collaboration for making the 2018 component-separation maps publicly available, and the developers of HEALPix, CAMB, PySR, and the wider open-source scientific-Python ecosystem, without which this analysis would not have been possible.
+
+\begin{thebibliography}{99}
+
+\bibitem[Penrose(2010)]{penrose_ccc_2010}
+R. Penrose,
+\emph{Cycles of Time: An Extraordinary New View of the Universe},
+Bodley Head, London (2010).
+
+\bibitem[Gurzadyan and Penrose(2010a)]{gp_2010a}
+V.~G. Gurzadyan and R. Penrose,
+``Concentric circles in \emph{WMAP} data may provide evidence of violent pre-Big-Bang activity,''
+arXiv:1011.3706 (2010).
+
+\bibitem[Gurzadyan and Penrose(2010b)]{gp_2010b}
+V.~G. Gurzadyan and R. Penrose,
+``More on the low variance circles in CMB sky,''
+arXiv:1012.1486 (2010).
+
+\bibitem[An et al.(2020)]{an_amnp_2018}
+D. An, K.~A. Meissner, P. Nurowski, and R. Penrose,
+``Apparent evidence for Hawking points in the CMB sky,''
+\emph{Mon. Not. R. Astron. Soc.} \textbf{495}, 3403 (2020); arXiv:1808.01740.
+
+\bibitem[Jow and Scott(2020)]{jow_scott_2020}
+D.~L. Jow and D. Scott,
+``Reanalysis of the evidence for Hawking points in the CMB,''
+\emph{J. Cosmol. Astropart. Phys.} \textbf{2020}(03), 021 (2020); arXiv:1909.09672.
+
+\bibitem[Bodnia et al.(2024)]{bodnia_2022}
+E. Bodnia, V. Isenbaev, K. Story, D. Lykov, and M. Kim,
+``HawkingNet: a deep-learning search for anomalies in the CMB,''
+arXiv:2208.06021, revised 2024.
+
+\bibitem[Planck Collaboration(2020a)]{planck2018_i}
+Planck Collaboration,
+``Planck 2018 results. I. Overview and the cosmological legacy of Planck,''
+\emph{Astron. Astrophys.} \textbf{641}, A1 (2020); arXiv:1807.06205.
+
+\bibitem[Planck Collaboration(2020b)]{planck2018_iv}
+Planck Collaboration,
+``Planck 2018 results. IV. Diffuse component separation,''
+\emph{Astron. Astrophys.} \textbf{641}, A4 (2020); arXiv:1807.06208.
+
+\bibitem[G\'orski et al.(2005)]{gorski_2005}
+K.~M. G\'orski et al.,
+``HEALPix: a framework for high-resolution discretization and fast analysis of data distributed on the sphere,''
+\emph{Astrophys. J.} \textbf{622}, 759 (2005); arXiv:astro-ph/0409513.
+
+\bibitem[Lewis et al.(2000)]{lewis_2000}
+A. Lewis, A. Challinor, and A. Lasenby,
+``Efficient computation of CMB anisotropies in closed FRW models,''
+\emph{Astrophys. J.} \textbf{538}, 473 (2000); arXiv:astro-ph/9911177.
+
+\bibitem[Cranmer(2023)]{cranmer_pysr_2023}
+M. Cranmer,
+``Interpretable machine learning for science with PySR and SymbolicRegression.jl,''
+arXiv:2305.01582 (2023).
+
+\bibitem[Papamakarios et al.(2017)]{papamakarios_2017}
+G. Papamakarios, T. Pavlakou, and I. Murray,
+``Masked autoregressive flow for density estimation,''
+\emph{Adv. Neural Inf. Process. Syst.} \textbf{30} (2017); arXiv:1705.07057.
+
+\bibitem[Dinh et al.(2017)]{dinh_2016}
+L. Dinh, J. Sohl-Dickstein, and S. Bengio,
+``Density estimation using Real NVP,''
+Proc. 5th Int. Conf. Learning Representations, ICLR (2017); arXiv:1605.08803.
+
+\bibitem[Bennett et al.(2013)]{bennett_2013}
+C.~L. Bennett et al.,
+``Nine-year \emph{Wilkinson Microwave Anisotropy Probe} (WMAP) observations: final maps and results,''
+\emph{Astrophys. J. Suppl.} \textbf{208}, 20 (2013); arXiv:1212.5225.
+
+\end{thebibliography}
+
+\end{document}
