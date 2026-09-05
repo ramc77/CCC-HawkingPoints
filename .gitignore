@@ -33,7 +33,7 @@ __pycache__/
 build/
 dist/
 
-# LaTeX build artifacts
+# LaTeX build artifacts (base paper and journal-formatted variants)
 paper/*.aux
 paper/*.log
 paper/*.out
@@ -41,6 +41,15 @@ paper/*.toc
 paper/*.bbl
 paper/*.blg
 paper/*.synctex.gz
+paper/journals/*/*.aux
+paper/journals/*/*.log
+paper/journals/*/*.out
+paper/journals/*/*.toc
+paper/journals/*/*.bbl
+paper/journals/*/*.blg
+paper/journals/*/*.spl
+paper/journals/*/*.synctex.gz
+paper/journals/*/missfont.log
 
 # Envs
 .venv/
