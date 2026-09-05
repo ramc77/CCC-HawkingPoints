@@ -32,7 +32,7 @@ function heading(text) {
 
 const TITLE = "An interpretable, trials-corrected machine-learning search for Penrose Hawking points in the Planck 2018 cosmic microwave background";
 
-const ABSTRACT_TEXT = "Roger Penrose's conformal cyclic cosmology (CCC) predicts that supermassive black holes evaporating during a previous cosmic aeon leave small, quasi-circular temperature imprints on the cosmic microwave background (CMB) of the present aeon — “Hawking points” — of order one degree in angular size and tens of microkelvin in central amplitude. Existing searches assumed a specific radial signal template or used a supervised classifier whose decisions could not be inspected physically, and none folded in the look-elsewhere effect from the outset; Jow and Scott subsequently showed that the earlier significances collapse into the Gaussian ΛCDM null under a proper trials-factor correction. Here we remove these three limitations simultaneously. For every candidate sky patch we compute a 40-dimensional vector of physically-named features (a ring-variance profile, spherical wavelet coefficients, Minkowski excursion-set functionals, and local moments), train a whitened multivariate Gaussian density model on 1000 Gaussian ΛCDM null simulations, and reduce the learned anomaly score to a closed-form linear combination of the input features by ridge regression. Statistical significance is calibrated against the empirical distribution of the sky-wide maximum of the compact statistic across the null ensemble, absorbing the look-elsewhere effect by construction; the trials-corrected p-values are uniform on 200 held-out control simulations at Kolmogorov–Smirnov p_KS = 0.48. The compact statistic independently recovers the classical Gurzadyan–Penrose ring-variance ratio as one of its dominant terms, and identifies the Minkowski V1 perimeter of ±1σ excursion sets as a new co-dominant channel. Applied to the four Planck 2018 component-separation CMB maps under the official Planck common confidence mask, no candidate exceeds the trials-corrected α = 0.01 threshold in more than one of the four maps except a single cluster at galactic coordinates (l, b) ≈ (133°, −24°). Its asymmetric morphology does not match the AMNP-2018 template, and a Planck 353 GHz thermal-dust cross-check finds the candidate direction is 0.57× the median dust brightness and 0.49× the median dust variability of same-galactic-latitude controls, ruling out a shared foreground residual. We report a calibrated non-detection of AMNP-2018-shape Hawking points above ∼80 μK at ∼1° angular scale in Planck PR3 data; the physical origin of the (l, b) ≈ (133°, −24°) cluster remains open between a rare Gaussian ΛCDM null-tail configuration and a genuinely anomalous CMB feature.";
+const ABSTRACT_TEXT = "Roger Penrose's conformal cyclic cosmology predicts that black holes evaporating in the previous cosmic aeon leave small circular imprints — “Hawking points” — on our cosmic microwave background, but existing searches for them are compromised by template dependence, uninspectable black-box decisions, or improper correction for the number of independent sky regions searched. We present a template-free, interpretable machine-learning search for Hawking points in the four Planck 2018 component-separation CMB maps. Each sky patch is reduced to a vector of physically-named features, scored against a density model trained on 1000 Gaussian ΛCDM simulations, and the resulting anomaly score is distilled into a closed-form statistic whose significance is calibrated against the sky-wide maximum score across the null ensemble, correctly absorbing the look-elsewhere effect. The calibration is verified uniform on held-out control simulations, and the distilled statistic recovers the classical ring-variance statistic while adding a new Minkowski-perimeter channel. No candidate exceeds the trials-corrected significance threshold in more than one of the four maps except a single cluster whose morphology and thermal-dust properties rule out both a Hawking-point match and a foreground origin. We report a calibrated non-detection of Hawking points above about 80 μK in Planck data, with this one candidate's physical origin left open for further study.";
 
 const KEYWORDS = "cosmic microwave background; cosmology: observations; cosmology: theory; conformal cyclic cosmology; Hawking points; machine learning; methods: statistical; methods: data analysis";
 
@@ -133,6 +133,53 @@ const potduCoverDoc = new Document({
 });
 
 // =============================================================
+// MNRAS cover letter
+// =============================================================
+const mnrasCoverBody = [
+  p('Ram Chand', { alignment: AlignmentType.RIGHT, after: 0 }),
+  p('Department of Natural Sciences', { alignment: AlignmentType.RIGHT, after: 0 }),
+  p('The Begum Nusrat Bhutto Women University', { alignment: AlignmentType.RIGHT, after: 0 }),
+  p('Sukkur, Sindh, Pakistan', { alignment: AlignmentType.RIGHT, after: 0 }),
+  p('ram.chand2k11@yahoo.com', { alignment: AlignmentType.RIGHT, after: 240 }),
+
+  p(new Date().toISOString().slice(0, 10), { after: 240 }),
+
+  p('The Editors', { after: 0 }),
+  p('Monthly Notices of the Royal Astronomical Society', { after: 240 }),
+
+  p('Dear Editors,', { after: 240 }),
+
+  p(`I am submitting for your consideration the manuscript "${TITLE}" for publication in MNRAS.`),
+
+  p('Roger Penrose\'s conformal cyclic cosmology predicts that supermassive black holes evaporating near the end of the previous cosmic aeon leave small circular temperature imprints — "Hawking points" — on the cosmic microwave background of the present aeon. The three prior searches for this signature each carried a specific methodological weakness: the ring-variance search of Gurzadyan and Penrose (2010) and the Gaussian-template search of An, Meissner, Nurowski and Penrose (2020) each assumed a specific signal shape, the supervised deep-learning classifier HawkingNet (Bodnia et al., 2024) delivered decisions that could not be inspected physically, and none of the three correctly folded the look-elsewhere effect into their calibration from the outset. Jow and Scott (2020) showed that once the trials factor from scanning the whole sky is properly included, the earlier claimed detections are statistically indistinguishable from the Gaussian LambdaCDM null.'),
+
+  p('The pipeline in this paper removes all three limitations at once. It learns the distribution of a Gaussian LambdaCDM sky directly from 1000 simulated skies, with no assumption about what a Hawking point should look like. It reduces the learned anomaly score to a compact, human-readable linear combination of physically-named CMB features (a generalised ring-variance statistic, spherical-wavelet coefficients, and Minkowski functionals of the local excursion set) by ridge regression, so the decision can be checked against physical intuition rather than trusted as a black box. And its statistical significance is calibrated from the outset against the empirical distribution of the sky-wide maximum score across the null ensemble, which correctly absorbs the look-elsewhere effect; the trials-corrected p-values pass a Kolmogorov-Smirnov uniformity test on 200 independent control simulations (p = 0.48).'),
+
+  p('Two results should be of direct interest to the MNRAS readership. First, the distilled statistic independently rediscovers the classical Gurzadyan-Penrose ring-variance ratio as one of its dominant terms, without ever being told about it, and identifies the Minkowski V1 perimeter of the +/-1 sigma excursion set as a new co-dominant channel not used in the prior literature. Second, applied to all four Planck 2018 component-separation maps, the pipeline finds one cross-pipeline consistent candidate at galactic coordinates (l, b) approximately (133 degrees, minus 24 degrees) whose morphology does not match the predicted Hawking-point template, and which a Planck 353 GHz thermal-dust cross-check shows is not a foreground residual either. The physical origin of this one candidate is left open, requiring a larger calibration ensemble to resolve.'),
+
+  p('The overall result is a calibrated non-detection of Hawking points above approximately 80 microkelvin at the predicted one-degree scale in Planck PR3 data, consistent with and extending the Bayesian reanalysis of Jow and Scott (2020) to a template-free machine-learning method.'),
+
+  p('The manuscript is prepared with the official MNRAS LaTeX class (mnras.cls v3.2) and reference style, is approximately 6000 words, and contains three figures and five tables. All code, configuration files, and analysis outputs that underpin the paper are publicly available at https://github.com/ramc77/CCC-HawkingPoints, so that any reader can reproduce the calibration certification, the sensitivity curve, the distilled statistic, and the cross-pipeline candidate matrix.'),
+
+  p('I confirm that this manuscript has not been published elsewhere and is not under consideration by any other journal. I have no competing interests to declare, and no external funding sources to acknowledge beyond the institutional support of The Begum Nusrat Bhutto Women University.'),
+
+  p('Thank you for your time and consideration.', { after: 320 }),
+
+  p('Sincerely,', { after: 320 }),
+
+  p('Ram Chand', { after: 0 }),
+  p('Department of Natural Sciences', { after: 0 }),
+  p('The Begum Nusrat Bhutto Women University', { after: 0 }),
+  p('Sukkur, Sindh, Pakistan', { after: 0 }),
+  p('ram.chand2k11@yahoo.com'),
+];
+
+const mnrasCoverDoc = new Document({
+  styles: { default: { document: { run: defaultRun } } },
+  sections: [{ properties: { page: pageSetup }, children: mnrasCoverBody }],
+});
+
+// =============================================================
 // Portal abstracts — single flowing paragraph, matching the
 // paper's actual abstract style (not the old structured-block
 // Context/Aims/Methods/Results/Conclusions format, which is an
@@ -177,6 +224,7 @@ function makeAbstractDoc(journalName) {
 
 const jcapAbstractDoc = makeAbstractDoc('JCAP');
 const potduAbstractDoc = makeAbstractDoc('Physics of the Dark Universe');
+const mnrasAbstractDoc = makeAbstractDoc('MNRAS');
 
 // =============================================================
 // PoTDU Highlights — standalone file, required as a separate upload by
@@ -237,6 +285,8 @@ async function main() {
     ['POTDU_cover_letter.docx', potduCoverDoc],
     ['POTDU_portal_abstract.docx', potduAbstractDoc],
     ['POTDU_highlights.docx', potduHighlightsDoc],
+    ['MNRAS_cover_letter.docx', mnrasCoverDoc],
+    ['MNRAS_portal_abstract.docx', mnrasAbstractDoc],
   ];
   console.log('Wrote:');
   for (const [name, doc] of writes) {
