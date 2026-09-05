@@ -1,5 +1,5 @@
 const {
-  Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel,
+  Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel, LevelFormat,
 } = require('docx');
 const fs = require('fs');
 const path = require('path');
@@ -178,6 +178,54 @@ function makeAbstractDoc(journalName) {
 const jcapAbstractDoc = makeAbstractDoc('JCAP');
 const potduAbstractDoc = makeAbstractDoc('Physics of the Dark Universe');
 
+// =============================================================
+// PoTDU Highlights — standalone file, required as a separate upload by
+// Elsevier's submission portal (Editorial Manager) in addition to being
+// embedded as the manuscript's own first page via elsarticle's
+// \begin{highlights} environment. JCAP has no equivalent requirement, so
+// no JCAP highlights file is produced. Elsevier's stated limit is 3-5
+// bullet points, each at most 85 characters including spaces; every
+// bullet below is verified under that limit.
+// =============================================================
+const HIGHLIGHTS = [
+  "Template-free, interpretable ML pipeline searches Planck CMB for Hawking points.",
+  "Trials-corrected calibration passes a Kolmogorov-Smirnov test (p = 0.48) on 200 sims.",
+  "Distilled statistic recovers the classical Gurzadyan-Penrose ring-variance term.",
+  "New Minkowski V1 perimeter statistic identified as a co-dominant anomaly channel.",
+  "Calibrated non-detection of Hawking points above 80 microkelvin in Planck PR3 data.",
+];
+for (const b of HIGHLIGHTS) {
+  if (b.length > 85) throw new Error(`Highlight exceeds 85 chars (${b.length}): ${b}`);
+}
+
+const highlightsBody = [
+  new Paragraph({
+    spacing: { after: 240 },
+    children: [new TextRun({ text: TITLE, bold: true, font: 'Times New Roman', size: 24 })],
+  }),
+  p('Ram Chand', { after: 300 }),
+  ...HIGHLIGHTS.map(text => new Paragraph({
+    numbering: { reference: 'highlight-bullets', level: 0 },
+    spacing: { after: 160 },
+    children: [new TextRun({ text, font: 'Times New Roman', size: 22 })],
+  })),
+];
+
+const potduHighlightsDoc = new Document({
+  styles: { default: { document: { run: defaultRun } } },
+  numbering: {
+    config: [{
+      reference: 'highlight-bullets',
+      levels: [{
+        level: 0, format: LevelFormat.BULLET, text: '•',
+        alignment: AlignmentType.LEFT,
+        style: { paragraph: { indent: { left: 720, hanging: 360 } } },
+      }],
+    }],
+  },
+  sections: [{ properties: { page: pageSetup }, children: highlightsBody }],
+});
+
 // -----------------------------------------------------------
 // Serialise
 // -----------------------------------------------------------
@@ -188,6 +236,7 @@ async function main() {
     ['JCAP_portal_abstract.docx', jcapAbstractDoc],
     ['POTDU_cover_letter.docx', potduCoverDoc],
     ['POTDU_portal_abstract.docx', potduAbstractDoc],
+    ['POTDU_highlights.docx', potduHighlightsDoc],
   ];
   console.log('Wrote:');
   for (const [name, doc] of writes) {
