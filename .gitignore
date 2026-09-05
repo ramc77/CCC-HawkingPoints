@@ -13,6 +13,14 @@ README.md
 paper/DRAFT.md
 results/*.md
 
+# Private submission collateral — journal-specific documents and reviewer
+# correspondence stay off the public repo.
+paper/comments.txt
+paper/submission/cover_letter.docx
+paper/submission/declarationStatement.docx
+paper/submission/declarationStatement.pdf
+paper/submission/highlights.docx
+
 # Python
 __pycache__/
 *.py[cod]
