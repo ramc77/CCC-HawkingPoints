@@ -52,5 +52,8 @@ venv/
 .vscode/
 .idea/
 
+# Microsoft Office lock files (created while a docx/xlsx/pptx is open)
+~$*
+
 # Results — keep tracked figures/tables/CSVs, ignore scratch subdirs
 results/scratch/
