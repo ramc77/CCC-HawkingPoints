@@ -7,7 +7,6 @@
 \usepackage{amssymb}
 \usepackage{graphicx}
 \usepackage{booktabs}
-\usepackage{lineno}
 \usepackage[hidelinks]{hyperref}
 \usepackage[numbers,sort&compress]{natbib}
 
@@ -48,8 +47,6 @@ cosmic microwave background \sep cosmology: observations \sep cosmology: theory 
 \end{keyword}
 
 \end{frontmatter}
-
-\linenumbers
 
 \section{Introduction}\label{sec:intro}
 
@@ -244,11 +241,12 @@ $(257.1, -12.5)$ & $3.05 \times 10^3$ \\
 
 \begin{table}[t]
 \centering
-\caption{Planck 353\,GHz thermal-dust cross-check at the cross-pipeline consistent cluster. The candidate direction is compared against eight control discs at the same galactic latitude $b = -24^\circ$ and at random galactic longitudes (each control at least $15^\circ$ from the candidate). Values of $|\langle T_{353} \rangle|$ and $\sigma_{T_{353}}$ are in units of $K_\mathrm{CMB}$, the native thermodynamic temperature units of the Planck HFI 353\,GHz temperature map.}
+\caption{Planck 353\,GHz thermal-dust cross-check at the cross-pipeline consistent cluster, $(l, b) = (133.2^\circ, -24.0^\circ)$. The candidate direction is compared against eight control discs at the same galactic latitude $b = -24^\circ$ and at random galactic longitudes (each control at least $15^\circ$ from the candidate). Values of $|\langle T_{353} \rangle|$ and $\sigma_{T_{353}}$ are in units of $K_\mathrm{CMB}$, the native thermodynamic temperature units of the Planck HFI 353\,GHz temperature map.}
 \label{tab:dust_check}
+\small
 \begin{tabular}{lccc}
 \toprule
-Statistic & Candidate $(l, b) = (133.2^\circ, -24.0^\circ)$ & Median of 8 same-$b$ controls & Ratio candidate / median \\
+Statistic & Candidate & Median of 8 controls & Ratio \\
 \midrule
 $|\langle T_{353} \rangle|$ [$K_\mathrm{CMB}$] & $1.08 \times 10^{-3}$ & $1.90 \times 10^{-3}$ & $0.57$ \\
 $\sigma_{T_{353}}$ [$K_\mathrm{CMB}$]          & $2.25 \times 10^{-4}$ & $4.58 \times 10^{-4}$ & $0.49$ \\
